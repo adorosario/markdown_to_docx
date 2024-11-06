@@ -22,7 +22,7 @@ A robust Python-based tool that converts Markdown files to DOCX format with spec
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/md-to-docx-converter
+git clone https://github.com/adorosario/markdown_to_docx
 cd md-to-docx-converter
 ```
 
