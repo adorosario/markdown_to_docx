@@ -1,11 +1,15 @@
 import markdown
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.oxml import OxmlElement, ns
 from docx.oxml.ns import qn
 from bs4 import BeautifulSoup
 import re
 import argparse
+import requests
+from io import BytesIO
+import urllib.parse
+from urllib.parse import urlparse
 
 def create_element(name):
     return OxmlElement(name)
@@ -96,6 +100,34 @@ def clean_formula(formula):
     
     return formula.strip()
 
+def download_image(url):
+    """Download image from URL and return as bytes"""
+    try:
+        # Handle both HTTP and HTTPS URLs
+        if not url.startswith(('http:', 'https:')):
+            return None
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return BytesIO(response.content)
+    except Exception as e:
+        print(f"Error downloading image from {url}: {str(e)}")
+        return None
+
+def add_image_to_doc(doc, image_url, max_width=6):
+    """Add image to document with proper sizing"""
+    image_stream = download_image(image_url)
+    if image_stream:
+        try:
+            # Add the image with a maximum width of 6 inches
+            doc.add_picture(image_stream, width=Inches(max_width))
+            # Add a small space after the image
+            doc.add_paragraph()
+            return True
+        except Exception as e:
+            print(f"Error adding image to document: {str(e)}")
+    return False
+
 def convert_markdown_to_docx(input_file, output_file):
     # Read markdown content with explicit encoding
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -123,23 +155,32 @@ def convert_markdown_to_docx(input_file, output_file):
     doc = Document()
     
     # Process each element
-    for element in soup.find_all(['h3', 'p', 'table']):
+    for element in soup.find_all(['h3', 'p', 'table', 'img']):
         if element.name == 'h3':
             doc.add_heading(element.get_text(), level=3)
             
         elif element.name == 'p':
-            text = element.get_text()
-            
-            if 'FORMULA_PLACEHOLDER' in text:
-                for placeholder, original_formula in formulas.items():
-                    if placeholder in text:
-                        clean_text = clean_formula(original_formula)
-                        p = doc.add_paragraph()
-                        equation_element = create_equation_element(clean_text)
-                        p._element.append(equation_element)
-                        doc.add_paragraph()
+            # Check if paragraph contains an image
+            img = element.find('img')
+            if img:
+                # Add image if src attribute exists
+                if img.get('src'):
+                    add_image_to_doc(doc, img['src'])
+                # Add image caption (alt text) if it exists
+                if img.get('alt'):
+                    doc.add_paragraph(img['alt'], style='Caption')
             else:
-                doc.add_paragraph(text)
+                text = element.get_text()
+                if 'FORMULA_PLACEHOLDER' in text:
+                    for placeholder, original_formula in formulas.items():
+                        if placeholder in text:
+                            clean_text = clean_formula(original_formula)
+                            p = doc.add_paragraph()
+                            equation_element = create_equation_element(clean_text)
+                            p._element.append(equation_element)
+                            doc.add_paragraph()
+                else:
+                    doc.add_paragraph(text)
                 
         elif element.name == 'table':
             rows = element.find_all('tr')
@@ -156,6 +197,14 @@ def convert_markdown_to_docx(input_file, output_file):
                         table.cell(i, j).text = cell.get_text().strip()
             
             doc.add_paragraph()
+        
+        elif element.name == 'img':
+            # Handle standalone images
+            if element.get('src'):
+                add_image_to_doc(doc, element['src'])
+            # Add image caption (alt text) if it exists
+            if element.get('alt'):
+                doc.add_paragraph(element['alt'], style='Caption')
     
     # Save the document with explicit encoding
     doc.save(output_file)
@@ -173,4 +222,3 @@ if __name__ == "__main__":
         print(f"Successfully converted {args.input} to {args.output}")
     except Exception as e:
         print(f"Error converting file: {str(e)}")
-        
