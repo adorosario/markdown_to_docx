@@ -5,6 +5,7 @@ from docx.oxml import OxmlElement, ns
 from docx.oxml.ns import qn
 from bs4 import BeautifulSoup
 import re
+import argparse
 
 def create_element(name):
     return OxmlElement(name)
@@ -160,8 +161,16 @@ def convert_markdown_to_docx(input_file, output_file):
     doc.save(output_file)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Convert markdown file to DOCX')
+    parser.add_argument('-i', '--input', required=True, help='Input markdown file')
+    parser.add_argument('-o', '--output', required=True, help='Output DOCX file')
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
     try:
-        convert_markdown_to_docx('formulas.md', 'output.docx')
-        print("Successfully converted formulas.md to output.docx")
+        convert_markdown_to_docx(args.input, args.output)
+        print(f"Successfully converted {args.input} to {args.output}")
     except Exception as e:
         print(f"Error converting file: {str(e)}")
+        
