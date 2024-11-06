@@ -155,7 +155,7 @@ def convert_markdown_to_docx(input_file, output_file):
     doc = Document()
     
     # Process each element
-    for element in soup.find_all(['h3', 'p', 'table', 'img']):
+    for element in soup.find_all(['h3', 'p', 'table']):  # Removed 'img' from find_all
         if element.name == 'h3':
             doc.add_heading(element.get_text(), level=3)
             
@@ -166,9 +166,6 @@ def convert_markdown_to_docx(input_file, output_file):
                 # Add image if src attribute exists
                 if img.get('src'):
                     add_image_to_doc(doc, img['src'])
-                # Add image caption (alt text) if it exists
-                if img.get('alt'):
-                    doc.add_paragraph(img['alt'], style='Caption')
             else:
                 text = element.get_text()
                 if 'FORMULA_PLACEHOLDER' in text:
@@ -197,14 +194,6 @@ def convert_markdown_to_docx(input_file, output_file):
                         table.cell(i, j).text = cell.get_text().strip()
             
             doc.add_paragraph()
-        
-        elif element.name == 'img':
-            # Handle standalone images
-            if element.get('src'):
-                add_image_to_doc(doc, element['src'])
-            # Add image caption (alt text) if it exists
-            if element.get('alt'):
-                doc.add_paragraph(element['alt'], style='Caption')
     
     # Save the document with explicit encoding
     doc.save(output_file)
